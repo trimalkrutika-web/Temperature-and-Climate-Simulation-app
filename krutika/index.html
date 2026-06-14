@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Climate Simulator Pro</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    background: linear-gradient(-45deg, #1e3a8a, #0f172a, #065f46, #111827);
+    background-size: 400% 400%;
+    animation: gradientBG 10s ease infinite;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.earth-glow {
+    box-shadow: 0 0 40px rgba(59,130,246,0.6);
+    transition: 0.5s;
+}
+
+.pulse {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+
+.glass {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+}
+</style>
+
+</head>
+
+<body class="p-6 text-white">
+
+<div class="max-w-6xl mx-auto glass p-6 rounded-2xl shadow-2xl">
+
+<h1 class="text-3xl font-bold text-center mb-6">
+🌍 Climate Simulator Pro (AI + Game Mode)
+</h1>
+
+<div class="grid md:grid-cols-2 gap-8">
+
+<!-- LEFT -->
+<div>
+
+<div class="grid grid-cols-2 gap-4 mb-6">
+
+<div>
+<label>CO2 (ppm)</label>
+<input type="range" id="co2" min="300" max="1000" value="400" class="w-full">
+<p id="co2Val">400</p>
+</div>
+
+<div>
+<label>Deforestation (%)</label>
+<input type="range" id="forest" min="0" max="100" value="20" class="w-full">
+<p id="forestVal">20%</p>
+</div>
+
+</div>
+
+<canvas id="chart"></canvas>
+
+</div>
+
+<!-- RIGHT -->
+<div class="flex flex-col items-center justify-center">
+
+<div id="earthContainer" class="earth-glow rounded-full p-2">
+<img
+src="https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg"
+class="w-48 h-48 rounded-full object-cover">
+</div>
+
+<p id="statusText" class="mt-4 text-xl font-bold">SAFE | Score: 100</p>
+
+<div class="flex gap-4 mt-6">
+<button onclick="simulate()" class="bg-blue-600 px-5 py-2 rounded-lg">Run</button>
+<button onclick="resetSimulation()" class="bg-gray-400 px-5 py-2 rounded-lg">Restart</button>
+</div>
+
+<!-- GAME BUTTONS -->
+<div class="mt-4 flex gap-2 flex-wrap">
+<button onclick="plantTrees()" class="bg-green-600 px-3 py-1 rounded">🌳 Plant Trees</button>
+<button onclick="reduceCO2()" class="bg-blue-600 px-3 py-1 rounded">🚗 Reduce CO2</button>
+<button onclick="cleanEnergy()" class="bg-yellow-500 px-3 py-1 rounded">☀️ Clean Energy</button>
+</div>
+
+<!-- AI CHAT -->
+<div class="mt-6 w-full">
+<input id="userInput" placeholder="Ask AI about climate..."
+class="w-full p-2 rounded text-black">
+
+<button onclick="askAI()" class="mt-2 bg-purple-600 px-4 py-2 rounded">
+Ask AI
+</button>
+
+<p id="aiResponse" class="mt-3 text-sm"></p>
+</div>
+
+</div>
+</div>
+
+<div id="statusBox" class="mt-6 p-4 rounded-lg bg-green-500">
+Stable Climate 🌱
+</div>
+
+</div>
+
+<script>
+
+const co2 = document.getElementById("co2");
+const forest = document.getElementById("forest");
+const earthContainer = document.getElementById("earthContainer");
+const statusText = document.getElementById("statusText");
+const statusBox = document.getElementById("statusBox");
+
+let score = 100;
+
+const ctx = document.getElementById("chart").getContext("2d");
+
+let chart = new Chart(ctx, {
+    type: "line",
+    data: {
+        labels: [],
+        datasets: [{
+            label: "Temp Rise (°C)",
+            data: [],
+            borderWidth: 3,
+            tension: 0.4
+        }]
+    }
+});
+
+// Climate formula
+function calculateTemp(co2Val, forestVal){
+    let tempCO2 = 3 * Math.log2(co2Val / 280);
+    let tempForest = forestVal * 0.02;
+    return tempCO2 + tempForest;
+}
+
+// Simulation
+function simulate(){
+
+    let co2Val = parseInt(co2.value);
+    let forestVal = parseInt(forest.value);
+
+    document.getElementById("co2Val").innerText = co2Val;
+    document.getElementById("forestVal").innerText = forestVal + "%";
+
+    let years = [2020,2030,2040,2050,2060,2070,2080,2090,2100];
+    let temps = [];
+
+    let baseTemp = calculateTemp(co2Val, forestVal);
+
+    for(let i=0;i<years.length;i++){
+        temps.push(baseTemp + i * 0.2);
+    }
+
+    let color, text;
+
+    if(baseTemp < 2){
+        color = "#22c55e";
+        text = "SAFE 🌱";
+        score += 2;
+        updateUI(color, "You are saving Earth 🌍");
+    }
+    else if(baseTemp < 4){
+        color = "#f59e0b";
+        text = "WARNING ⚠️";
+        score -= 1;
+        updateUI(color, "Climate Risk Rising ⚠️");
+    }
+    else{
+        color = "#ef4444";
+        text = "CRITICAL 🔥";
+        score -= 3;
+        updateUI(color, "Severe Climate Crisis 🔥");
+        earthContainer.classList.add("pulse");
+    }
+
+    // Winning / Losing
+    if(score > 120){
+        statusBox.innerText = "🎉 You saved Earth!";
+    }
+    if(score < 50){
+        statusBox.innerText = "💀 Earth collapsed!";
+    }
+
+    statusText.innerText = text + " | Score: " + score;
+
+    chart.data.labels = years;
+    chart.data.datasets[0].data = temps;
+    chart.data.datasets[0].borderColor = color;
+    chart.update();
+}
+
+function updateUI(color, message){
+    statusBox.style.backgroundColor = color;
+    statusBox.innerText = message;
+    earthContainer.style.boxShadow = `0 0 40px ${color}`;
+    earthContainer.classList.remove("pulse");
+}
+
+// Game actions
+function plantTrees(){
+    forest.value = Math.max(0, forest.value - 10);
+    simulate();
+}
+
+function reduceCO2(){
+    co2.value = Math.max(300, co2.value - 50);
+    simulate();
+}
+
+function cleanEnergy(){
+    co2.value = Math.max(300, co2.value - 30);
+    simulate();
+}
+
+// AI Chatbot
+function askAI(){
+    let input = document.getElementById("userInput").value.toLowerCase();
+    let response = "";
+
+    if(input.includes("reduce")){
+        response = "Reduce emissions, use renewable energy, and plant trees 🌱";
+    }
+    else if(input.includes("co2")){
+        response = "High CO2 increases global temperature and causes climate change 🌍";
+    }
+    else if(input.includes("forest")){
+        response = "Deforestation increases warming and harms ecosystems 🌳";
+    }
+    else{
+        response = "Climate change is caused by CO2, deforestation, and human activities.";
+    }
+
+    document.getElementById("aiResponse").innerText = response;
+}
+
+// Reset
+function resetSimulation(){
+    co2.value = 400;
+    forest.value = 20;
+    score = 100;
+
+    document.getElementById("co2Val").innerText = 400;
+    document.getElementById("forestVal").innerText = "20%";
+
+    statusText.innerText = "SAFE | Score: 100";
+    statusBox.innerText = "Stable Climate 🌱";
+    statusBox.style.backgroundColor = "#22c55e";
+
+    earthContainer.style.boxShadow = "0 0 40px #3b82f6";
+    earthContainer.classList.remove("pulse");
+
+    chart.data.labels = [];
+    chart.data.datasets[0].data = [];
+    chart.update();
+}
+
+// Live update
+co2.addEventListener("input", simulate);
+forest.addEventListener("input", simulate);
+
+// Run once
+simulate();
+
+</script>
+
+</body>
+</html>
